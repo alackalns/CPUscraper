@@ -19,6 +19,9 @@ chart_list = soup.find("ul", class_="chartlist")
 cpus = []
 if chart_list:
     for li in chart_list.find_all("li", class_="platform-cpu"):
+        if "desktop" not in li.get("class", []):
+            continue
+
         name_tag = li.find("span", class_="prdname")
         score_tag = li.find("span", class_="count")
 
