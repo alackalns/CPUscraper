@@ -1,8 +1,20 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
+from requests_ip_rotator import ApiGateway
 import time
 import random
+import csv
+
+# Read AWS credentials from CSV file
+def read_aws_credentials(csv_file):
+    with open(csv_file, mode='r', encoding='utf-8-sig', newline='') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            access_key_id = row['Access key ID']
+            access_key_secret = row['Secret access key']
+            return access_key_id, access_key_secret
+    raise ValueError("CSV is empty or missing required fields.")
 
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
@@ -61,12 +73,21 @@ def get_cpu_price(cpu_name):
 def main():
     cpus = get_top_desktop_cpus()
 
+    # Setup IP rotator for salidzini.lv
+    access_key_id, access_key_secret = read_aws_credentials("CPUscraper_accessKeys.csv")
+    gateway = ApiGateway("https://www.salidzini.lv", access_key_id=access_key_id, access_key_secret=access_key_secret)
+    gateway.start()
+    session = requests.Session()
+    session.mount("https://www.salidzini.lv", gateway)
+
     print("Top Gaming Desktop CPUs with Prices in Latvia:\n")
     for i, (name, score) in enumerate(cpus[:5], 1):
         price = get_cpu_price(name)
         price_str = f"€{price:.2f}" if price else "Not Found"
         print(f"{i}. {name} - Score: {score} - Price: {price_str}")
         time.sleep(random.uniform(1, 4))
+
+    gateway.shutdown()
 
 if __name__ == "__main__":
     main()
