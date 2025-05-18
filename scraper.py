@@ -1,37 +1,72 @@
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import quote_plus
+import time
+import random
 
-url = "https://www.cpubenchmark.net/top-gaming-cpus.html"
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
+# Function to scrape top gaming desktop CPUs
+def get_top_desktop_cpus():
+    url = "https://www.cpubenchmark.net/top-gaming-cpus.html"
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-response = requests.get(url, headers=headers)
-if response.status_code != 200:
-    print(f"Failed to retrieve page. Status: {response.status_code}")
-    exit()
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print("Failed to fetch CPU benchmark page.")
+        return []
 
-soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(response.text, "html.parser")
+    chart_list = soup.find("ul", class_="chartlist")
 
-# Locate the chart list container
-chart_list = soup.find("ul", class_="chartlist")
+    cpus = []
+    if chart_list:
+        for li in chart_list.find_all("li", class_="platform-cpu"):
+            if "desktop" not in li.get("class", []):
+                continue
+            name_tag = li.find("span", class_="prdname")
+            score_tag = li.find("span", class_="count")
+            if name_tag and score_tag:
+                name = name_tag.text.strip()
+                score = score_tag.text.strip().replace(",", "")
+                cpus.append((name, score))
+    return cpus
 
-cpus = []
-if chart_list:
-    for li in chart_list.find_all("li", class_="platform-cpu"):
-        if "desktop" not in li.get("class", []):
-            continue
+# Function to get lowest price of CPU from salidzini.lv
+def get_cpu_price(cpu_name):
+    base_url = "https://www.salidzini.lv/cena?q="
+    query = quote_plus(cpu_name)
+    full_url = base_url + query
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-        name_tag = li.find("span", class_="prdname")
-        score_tag = li.find("span", class_="count")
+    try:
+        response = requests.get(full_url, headers=headers)
+        if response.status_code != 200:
+            return None
+        soup = BeautifulSoup(response.text, "html.parser")
+        price_spans = soup.select("div.item_price span")
 
+        prices = []
+        for span in price_spans:
+            try:
+                price_text = span.get_text().replace(",", ".").replace(" ", "")
+                price = float(price_text)
+                prices.append(price)
+            except ValueError:
+                continue
+        return min(prices) if prices else None
+    except Exception as e:
+        print(f"Error fetching price for {cpu_name}: {e}")
+        return None
 
-        if name_tag and score_tag:
-            name = name_tag.text.strip()
-            score = score_tag.text.strip()
-            cpus.append((name, score))
+# Main execution
+def main():
+    cpus = get_top_desktop_cpus()
 
-# Display results
-print("Top Gaming CPUs:\n")
-for i, (name, score) in enumerate(cpus, 1):
-    print(f"{i}. {name} - Score: {score}")
+    print("Top Gaming Desktop CPUs with Prices in Latvia:\n")
+    for i, (name, score) in enumerate(cpus[:5], 1):
+        price = get_cpu_price(name)
+        price_str = f"€{price:.2f}" if price else "Not Found"
+        print(f"{i}. {name} - Score: {score} - Price: {price_str}")
+        time.sleep(random.uniform(1, 4))
+
+if __name__ == "__main__":
+    main()
