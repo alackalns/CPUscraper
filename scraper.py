@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+import pandas as pd
 
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
@@ -80,6 +81,7 @@ def main():
     driver = webdriver.Chrome(options=chrome_options)
 
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
+    cpu_data = []
     for i, (name, score) in enumerate(cpus[:5], 1):
         price, link = get_cpu_price_selenium(name, driver)
         try:
@@ -97,7 +99,20 @@ def main():
         link_str = link if link else "No Link Found"
         print(f"{i}. {name} - Score: {score} - Price: {price_str} - Score/EUR: {score_per_eur_str} - Link: {link_str}")
 
+        cpu_data.append({
+            "Rank": i,
+            "CPU Name": name,
+            "Score": score,
+            "Price (EUR)": price_str,
+            "Score/EUR": score_per_eur,
+            "Link": link
+        })
+
     driver.quit()
+
+    df = pd.DataFrame(cpu_data)
+    df.to_excel("cpus.xlsx", index=False)
+    print("\nData has been exported to 'cpus.xlsx'.")
 
 if __name__ == "__main__":
     main()
