@@ -1,10 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
-import time
-import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
@@ -40,29 +41,33 @@ def get_cpu_price_selenium(cpu_name, driver):
 
     try:
         driver.get(full_url)
-        # Wait for page to load (can adjust time or use WebDriverWait)
-        time.sleep(random.uniform(3, 5))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.item_price span"))
+        )
 
-        # Extract prices using regex or by element class
-        html = driver.page_source
-        soup = BeautifulSoup(html, "html.parser")
-        price_spans = soup.select("div.item_price span")
+        items = driver.find_elements(By.CSS_SELECTOR, "div.item_box_sub")  # Each item block
+        lowest_price = float("inf")
+        lowest_link = None
 
-        prices = []
-        for span in price_spans:
+        for item in items:
             try:
-                price_text = span.get_text().replace(",", ".").replace(" ", "")
+                price_span = item.find_element(By.CSS_SELECTOR, "div.item_price span")
+                price_text = price_span.text.replace(",", ".").replace(" ", "")
                 price = float(price_text)
-                prices.append(price)
-            except ValueError:
+
+                link_tag = item.find_element(By.CSS_SELECTOR, "a.item_link")
+                item_link = link_tag.get_attribute("href")
+
+                if price < lowest_price:
+                    lowest_price = price
+                    lowest_link = item_link
+            except Exception:
                 continue
 
-        if not prices:
-            print(soup.prettify())
-        return min(prices) if prices else None
+        return (lowest_price if lowest_price != float("inf") else None, lowest_link)
     except Exception as e:
         print(f"Error scraping price for {cpu_name}: {e}")
-        return None
+        return None, None
 
 # Main execution
 def main():
@@ -70,16 +75,16 @@ def main():
 
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Run without GUI
+    chrome_options.add_argument("--blink-settings=imagesEnabled=false")
 
     driver = webdriver.Chrome(options=chrome_options)
 
-    print("Top Gaming Desktop CPUs with Prices in Latvia:\n")
+    print("Top Gaming Desktop CPUs with Prices in Latvia:")
     for i, (name, score) in enumerate(cpus[:5], 1):
-        # price = get_cpu_price(name, session)
-        price = get_cpu_price_selenium(name, driver)
+        price, link = get_cpu_price_selenium(name, driver)
         price_str = f"€{price:.2f}" if price else "Not Found"
-        print(f"{i}. {name} - Score: {score} - Price: {price_str}")
-        time.sleep(random.uniform(1, 4))
+        link_str = link if link else "No Link Found"
+        print(f"{i}. {name} - Score: {score} - Price: {price_str} - Link: {link_str}")
 
     driver.quit()
 
