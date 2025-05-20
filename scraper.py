@@ -1,13 +1,14 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import undetected_chromedriver as uc
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import pandas as pd
 from tqdm import tqdm
+import time
+import random
 
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
@@ -75,11 +76,10 @@ def get_cpu_price_selenium(cpu_name, driver):
 def main():
     cpus = get_top_desktop_cpus()
 
-    chrome_options = Options()
+    chrome_options = uc.ChromeOptions()
     chrome_options.add_argument("--headless")  # Run without GUI
     chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = uc.Chrome(options=chrome_options)
 
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
     cpu_data = []
@@ -107,6 +107,9 @@ def main():
             "Score/EUR": score_per_eur_str,
             "Link": link_str
         })
+
+        if i < len(cpus[:5]):
+            time.sleep(random.uniform(0.5, 1.5))
 
     driver.quit()
 
