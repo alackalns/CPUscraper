@@ -7,6 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import pandas as pd
+from tqdm import tqdm
 
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
@@ -82,7 +83,7 @@ def main():
 
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
     cpu_data = []
-    for i, (name, score) in enumerate(cpus[:5], 1):
+    for i, (name, score) in enumerate(tqdm(cpus[:5], desc="Scraping CPUs"), 1):
         price, link = get_cpu_price_selenium(name, driver)
         try:
             score_val = float(score)
@@ -97,15 +98,14 @@ def main():
 
         price_str = f"€{price:.2f}" if price else "Not Found"
         link_str = link if link else "No Link Found"
-        print(f"{i}. {name} - Score: {score} - Price: {price_str} - Score/EUR: {score_per_eur_str} - Link: {link_str}")
 
         cpu_data.append({
             "Rank": i,
             "CPU Name": name,
             "Score": score,
             "Price (EUR)": price_str,
-            "Score/EUR": score_per_eur,
-            "Link": link
+            "Score/EUR": score_per_eur_str,
+            "Link": link_str
         })
 
     driver.quit()
