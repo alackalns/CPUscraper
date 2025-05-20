@@ -82,9 +82,20 @@ def main():
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
     for i, (name, score) in enumerate(cpus[:5], 1):
         price, link = get_cpu_price_selenium(name, driver)
+        try:
+            score_val = float(score)
+        except ValueError:
+            score_val = None
+
+        if price and score_val:
+            score_per_eur = score_val / price
+            score_per_eur_str = f"{score_per_eur:.2f}"
+        else:
+            score_per_eur_str = "N/A"
+
         price_str = f"€{price:.2f}" if price else "Not Found"
         link_str = link if link else "No Link Found"
-        print(f"{i}. {name} - Score: {score} - Price: {price_str} - Link: {link_str}")
+        print(f"{i}. {name} - Score: {score} - Price: {price_str} - Score/EUR: {score_per_eur_str} - Link: {link_str}")
 
     driver.quit()
 
