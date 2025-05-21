@@ -1,28 +1,24 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
-import undetected_chromedriver as uc
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
 import pandas as pd
 from tqdm import tqdm
 import time
 import random
 
-from seleniumbase import SB
-    
-def get_cpu_price_from_dateks(cpu_name, driver):
+def get_cpu_price_from_dateks(cpu_name):
     base_url = "https://www.dateks.lv/meklet?q="
     query = quote_plus(cpu_name)
     full_url = base_url + query
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36"
+    }
 
     try:
-        driver.get(full_url)
-        driver.wait_for_element("main.cont", timeout=12)
+        response = requests.get(full_url, headers=headers, timeout=12)
+        response.raise_for_status()
 
-        page_source = driver.get_page_source()
-        soup = BeautifulSoup(page_source, "html.parser")
+        soup = BeautifulSoup(response.text, "html.parser")
         products = soup.select("div.prod")
 
         if not products:
@@ -43,7 +39,7 @@ def get_cpu_price_from_dateks(cpu_name, driver):
                     lowest_price = price
                     lowest_link = full_link
 
-            except Exception as e:
+            except Exception:
                 continue
 
         return (lowest_price if lowest_price != float("inf") else None, lowest_link)
@@ -86,36 +82,33 @@ def main():
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
 
     cpu_data = []
+    for i, (name, score) in enumerate(tqdm(cpus, desc="Scraping CPUs")):
+        price, link = get_cpu_price_from_dateks(name)
 
-    with SB(uc=True, headless=True) as driver:  # Create driver once
-        for i, (name, score) in enumerate(tqdm(cpus, desc="Scraping CPUs"), 1):
-            price, link = get_cpu_price_from_dateks(name, driver)
+        try:
+            score_val = float(score)
+        except ValueError:
+            score_val = None
 
+        if price and score_val:
+            score_per_eur = score_val / price
+            score_per_eur_str = f"{score_per_eur:.2f}"
+        else:
+            score_per_eur_str = "N/A"
 
-            try:
-                score_val = float(score)
-            except ValueError:
-                score_val = None
+        price_str = f"€{price:.2f}" if price else "Not Found"
+        link_str = link if link else "No Link Found"
 
-            if price and score_val:
-                score_per_eur = score_val / price
-                score_per_eur_str = f"{score_per_eur:.2f}"
-            else:
-                score_per_eur_str = "N/A"
+        cpu_data.append({
+            "CPU Name": name,
+            "Score": score,
+            "Price (EUR)": price_str,
+            "Score/EUR": score_per_eur_str,
+            "Link": link_str
+        })
 
-            price_str = f"€{price:.2f}" if price else "Not Found"
-            link_str = link if link else "No Link Found"
-
-            cpu_data.append({
-                "CPU Name": name,
-                "Score": score,
-                "Price (EUR)": price_str,
-                "Score/EUR": score_per_eur_str,
-                "Link": link_str
-            })
-
-            # if i < len(cpus):
-            #     time.sleep(random.uniform(0.5, 1.5))  # Random sleep to avoid being blocked
+        if i < len(cpus):
+            time.sleep(random.uniform(0.5, 1.5))  # Random sleep to avoid being blocked
 
     df = pd.DataFrame(cpu_data)
     df.to_excel("cpus.xlsx", index=False)
