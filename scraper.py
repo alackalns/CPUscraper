@@ -10,6 +10,49 @@ from tqdm import tqdm
 import time
 import random
 
+from seleniumbase import SB
+    
+def get_cpu_price_from_dateks(cpu_name, driver):
+    base_url = "https://www.dateks.lv/meklet?q="
+    query = quote_plus(cpu_name)
+    full_url = base_url + query
+
+    try:
+        driver.get(full_url)
+        driver.wait_for_element("main.cont", timeout=12)
+
+        page_source = driver.get_page_source()
+        soup = BeautifulSoup(page_source, "html.parser")
+        products = soup.select("div.prod")
+
+        if not products:
+            return None, None
+
+        lowest_price = float("inf")
+        lowest_link = None
+
+        for prod in products:
+            try:
+                price_text = prod.select_one("div.price-info div.price").text.strip()
+                price = float(price_text.replace("€", "").replace(",", ".").replace(" ", ""))
+
+                relative_link = prod.select_one("a.imp")["href"]
+                full_link = "https://www.dateks.lv" + relative_link
+
+                if price < lowest_price:
+                    lowest_price = price
+                    lowest_link = full_link
+
+            except Exception as e:
+                continue
+
+        return (lowest_price if lowest_price != float("inf") else None, lowest_link)
+
+    except Exception as e:
+        print(f"Error scraping price for {cpu_name}: {e}")
+        return None, None
+
+
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
     url = "https://www.cpubenchmark.net/top-gaming-cpus.html"
@@ -36,82 +79,44 @@ def get_top_desktop_cpus():
                 cpus.append((name, score))
     return cpus
 
-# Function to get lowest price of CPU from salidzini.lv
-def get_cpu_price_selenium(cpu_name, driver):
-    base_url = "https://www.salidzini.lv/cena?q="
-    query = quote_plus(cpu_name)
-    full_url = base_url + query
-
-    try:
-        driver.get(full_url)
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.item_price span"))
-        )
-
-        items = driver.find_elements(By.CSS_SELECTOR, "div.item_box_sub")  # Each item block
-        lowest_price = float("inf")
-        lowest_link = None
-
-        for item in items:
-            try:
-                price_span = item.find_element(By.CSS_SELECTOR, "div.item_price span")
-                price_text = price_span.text.replace(",", ".").replace(" ", "")
-                price = float(price_text)
-
-                link_tag = item.find_element(By.CSS_SELECTOR, "a.item_link")
-                item_link = link_tag.get_attribute("href")
-
-                if price < lowest_price:
-                    lowest_price = price
-                    lowest_link = item_link
-            except Exception:
-                continue
-
-        return (lowest_price if lowest_price != float("inf") else None, lowest_link)
-    except Exception as e:
-        print(f"Error scraping price for {cpu_name}: {e}")
-        return None, None
-
 # Main execution
 def main():
     cpus = get_top_desktop_cpus()
 
-    chrome_options = uc.ChromeOptions()
-    chrome_options.add_argument("--headless")  # Run without GUI
-    chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-    driver = uc.Chrome(options=chrome_options)
-
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
+
     cpu_data = []
-    for i, (name, score) in enumerate(tqdm(cpus[:5], desc="Scraping CPUs"), 1):
-        price, link = get_cpu_price_selenium(name, driver)
-        try:
-            score_val = float(score)
-        except ValueError:
-            score_val = None
 
-        if price and score_val:
-            score_per_eur = score_val / price
-            score_per_eur_str = f"{score_per_eur:.2f}"
-        else:
-            score_per_eur_str = "N/A"
+    with SB(uc=True, headless=True) as driver:  # Create driver once
+        for i, (name, score) in enumerate(tqdm(cpus, desc="Scraping CPUs"), 1):
+            price, link = get_cpu_price_from_dateks(name, driver)
 
-        price_str = f"€{price:.2f}" if price else "Not Found"
-        link_str = link if link else "No Link Found"
 
-        cpu_data.append({
-            "Rank": i,
-            "CPU Name": name,
-            "Score": score,
-            "Price (EUR)": price_str,
-            "Score/EUR": score_per_eur_str,
-            "Link": link_str
-        })
+            try:
+                score_val = float(score)
+            except ValueError:
+                score_val = None
 
-        if i < len(cpus[:5]):
-            time.sleep(random.uniform(0.5, 1.5))
+            if price and score_val:
+                score_per_eur = score_val / price
+                score_per_eur_str = f"{score_per_eur:.2f}"
+            else:
+                score_per_eur_str = "N/A"
 
-    driver.quit()
+            price_str = f"€{price:.2f}" if price else "Not Found"
+            link_str = link if link else "No Link Found"
+
+            cpu_data.append({
+                "Rank": i,
+                "CPU Name": name,
+                "Score": score,
+                "Price (EUR)": price_str,
+                "Score/EUR": score_per_eur_str,
+                "Link": link_str
+            })
+
+            # if i < len(cpus):
+            #     time.sleep(random.uniform(0.5, 1.5))  # Random sleep to avoid being blocked
 
     df = pd.DataFrame(cpu_data)
     df.to_excel("cpus.xlsx", index=False)
