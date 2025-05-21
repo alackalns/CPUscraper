@@ -64,7 +64,7 @@ def get_top_desktop_cpus():
     soup = BeautifulSoup(response.text, "html.parser")
     chart_list = soup.find("ul", class_="chartlist")
 
-    cpus = []
+    cpus = LinkedList()
     if chart_list:
         for li in chart_list.find_all("li", class_="platform-cpu"):
             if "desktop" not in li.get("class", []):
@@ -77,13 +77,56 @@ def get_top_desktop_cpus():
                 cpus.append((name, score))
     return cpus
 
+class Node:
+    def __init__(self, data=None):
+        self.data = data
+        self.next = None
+
+class LinkedList:
+    def __init__(self):
+        self.head = None
+        self.length = 0
+
+    def append(self, data):
+        new_node = Node(data)
+        if not self.head:
+            self.head = new_node
+        else:
+            curr = self.head
+            while curr.next:
+                curr = curr.next
+            curr.next = new_node
+        self.length += 1
+
+    def __iter__(self):
+        self._iter_node = self.head
+        return self
+
+    def __next__(self):
+        if not self._iter_node:
+            raise StopIteration
+        data = self._iter_node.data
+        self._iter_node = self._iter_node.next
+        return data
+
+    def to_list(self):
+        result = []
+        current = self.head
+        while current:
+            result.append(current.data)
+            current = current.next
+        return result
+    
+    def __len__(self):
+        return self.length
+
 # Main execution
 def main():
     cpus = get_top_desktop_cpus()
-
     print("Top Gaming Desktop CPUs with Prices in Latvia:")
 
-    cpu_data = []
+    cpu_data = LinkedList()
+
     for i, (name, score) in enumerate(tqdm(cpus, desc="Scraping CPUs")):
         price, link = get_cpu_price_from_dateks(name)
 
@@ -112,7 +155,8 @@ def main():
         if i < len(cpus):
             time.sleep(random.uniform(0.5, 1.5))  # Random sleep to avoid being blocked
 
-    df = pd.DataFrame(cpu_data)
+    # Convert linked list to regular list for DataFrame export
+    df = pd.DataFrame(cpu_data.to_list())
     df.to_excel("cpus.xlsx", index=False)
     print("\nData has been exported to 'cpus.xlsx'.")
 

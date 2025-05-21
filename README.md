@@ -28,6 +28,9 @@ Noteikt, kuri no tiem ir izdevīgākie procesori Latvijā.
 * time - koda izpildes palēlināšanai, lai nepārslogotu tīmekļa serverus
 * random - gadījumvērtību iegūšanai, kuras izmantot gaidīšanām, lai simulētu reāla lietotāja pieprasījumus
 
+## Sevis definētās datu struktūras:
+* Saistītais saraksts *(linked list)*
+
 ## Izstrādes metode
 Lai projekta atrisināšana kļūtu vienkāršāka sadalīju projektu 2 daļās:
 1. Datu iegūšana un `cpus.xlsx` izveide
