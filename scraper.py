@@ -16,7 +16,9 @@ def get_cpu_price_from_dateks(cpu_name):
 
     try:
         response = requests.get(full_url, headers=headers, timeout=12)
-        response.raise_for_status()
+        if response.status_code != 200:
+            print(f"Failed to fetch CPU: {cpu_name} price page.")
+            return None, None
 
         soup = BeautifulSoup(response.text, "html.parser")
         products = soup.select("div.prod")
@@ -52,7 +54,7 @@ def get_cpu_price_from_dateks(cpu_name):
 # Function to scrape top gaming desktop CPUs
 def get_top_desktop_cpus():
     url = "https://www.cpubenchmark.net/top-gaming-cpus.html"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36"}
 
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
