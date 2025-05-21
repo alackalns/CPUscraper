@@ -107,7 +107,6 @@ def main():
             link_str = link if link else "No Link Found"
 
             cpu_data.append({
-                "Rank": i,
                 "CPU Name": name,
                 "Score": score,
                 "Price (EUR)": price_str,
